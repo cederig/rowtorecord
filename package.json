@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "chalk": "^5.0.1",
+    "cli-progress": "^3.11.2",
+    "js-yaml": "^4.1.0",
+    "xlsx-populate": "^1.21.0"
+  }
+}
