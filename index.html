@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RowToRecord v1.0</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" integrity="sha384-gH2yIJqKdNHPEq0n4Mqa/HGKIhSkIHeL5AyhkYV8i59U5AR6csBvApHHNl/vI1Bx" crossorigin="anonymous">
+</head>
+
+<body>
+    <div class="container">
+        <h1>RowToRecord v1.0</h1>
+        <div class="mb-3">
+            <label for="templateFile" class="form-label">Template Workbook</label>
+            <input class="form-control" type="file" id="templateFile" accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+        </div>
+        <div class="mb-3">
+            <label for="sourceFile" class="form-label">Source Workbook</label>
+            <input class="form-control" type="file" id="sourceFile" accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+        </div>
+        <div class="mb-3">
+            <label for="configurationFile" class="form-label">Configuration File</label>
+            <input class="form-control" type="file" id="configurationFile" accept=".yaml">
+        </div>
+        <button class="btn btn-primary" onclick="converter()">Generate file</button>
+
+    </div>
+
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.js" integrity="sha512-CwxrLIN0dww6lRc/oKeZiI9oGlOob2HPMU0Yu0g+P3/G1cuTii+tt0jpyEKhilfrV7D/zmvKiVPIHUDU6xbBxg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script type="text/javascript" src="./xlsx-populate-no-encryption.min.js"></script>
+    <script type="text/javascript">
+
+        async function converter() {
+            try {
+                let outputElement = "test.xlsm";
+
+                let templateFile = document.getElementById("templateFile").files[0];
+                let sourceFile = document.getElementById("sourceFile").files[0];
+                let outputFile = outputElement;
+                let configurationFile = document.getElementById("configurationFile").files[0];
+
+                if (!templateFile) throw 'Template file not found';
+                let modelWorkbook = await XlsxPopulate.fromDataAsync(templateFile);
+
+                if (!sourceFile) throw 'Source file not found';
+                let sourceWorkbook = await XlsxPopulate.fromDataAsync(sourceFile);
+
+                if (!configurationFile) throw 'Mapping file not found';
+
+                if (configurationFile) {
+                    let reader = new FileReader();
+                    reader.readAsText(configurationFile, "UTF-8");
+                    reader.onload = function (evt) {
+                        const { sheets, modelSheetName } = jsyaml.load(evt.target.result);
+
+                        Object.values(sheets).map(sheet => {
+                            const { sheet: { name, domain, startRow, stopRow, referenceColumn, recordState, mapping } } = sheet;
+
+                            if (!modelSheetName) throw 'Missing model sheet name parameter';
+                            let mws = modelWorkbook.sheet(modelSheetName);
+
+                            if (!name) throw 'Missing source sheet name parameter';
+                            let sws = sourceWorkbook.sheet(name);
+
+                            const rowCount = stopRow ?? sws._rows.length;
+
+                            if (!startRow) throw 'Missing start row parameter';
+                            if (!referenceColumn) throw 'Missing reference column parameter';
+
+                            for (let i = startRow; i < rowCount; i++) {
+
+                                let sheetName = sws.row(i).cell(referenceColumn).value();
+                                if (!sheetName) break;
+
+                                let clone = modelWorkbook.cloneSheet(mws, sheetName);
+
+                                if (recordState) clone.cell("E6").value(recordState);
+                                if (domain) clone.cell("C9").value(domain);
+
+                                Object.values(mapping).map(e => {
+                                    clone.cell(e.target).value(sws.row(i).cell(e.source).value());
+                                });
+
+                                clone.activeCell("A1");
+                            }
+                        });
+
+                        let workbookSheets = modelWorkbook.sheets();
+                        modelWorkbook.activeSheet(workbookSheets[0]);
+                        workbookSheets[0].activeCell("A1");
+                        workbookSheets[1].activeCell("A1");
+                        // modelWorkbook.toFileAsync(outputFile);
+                        // generateBase64();
+
+                        modelWorkbook.outputAsync({ type: "base64" }).then(function (book) {
+                            location.href = "data:" + XlsxPopulate.MIME_TYPE + ";base64," + book;
+                        });
+                    }
+                    reader.onerror = function (evt) {
+                        console.log(evt);
+                    }
+                }
+
+                // const { sheets, modelSheetName } = jsyaml.load(getAsText(configurationFile));
+
+
+
+
+
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        // function getAsText(readFile) {
+        //     var reader = new FileReader();
+        //     reader.readAsText(readFile, "UTF-16");
+
+        //     // Handle progress, success, and errors
+        //     reader.onprogress = updateProgress;
+        //     reader.onload = loaded;
+        //     reader.onerror = errorHandler;
+        // }
+
+
+        // Promise is not defined in IE so xlsx-populate uses a polyfill via JSZip.
+        // var Promise = XlsxPopulate.Promise;
+
+        // var radioBlank = document.getElementById("radio-blank");
+        // var radioAjax = document.getElementById("radio-ajax");
+        // var radioLocal = document.getElementById("radio-local");
+        // var urlInput = document.getElementById("url-input");
+        // var fileInput = document.getElementById("file-input");
+
+        // function getWorkbook() {
+        //     if (radioBlank.checked) {
+        //         return XlsxPopulate.fromBlankAsync();
+        //     } else if (radioAjax.checked) {
+        //         return new Promise(function (resolve, reject) {
+        //             var req = new XMLHttpRequest();
+        //             var url = urlInput.value;
+        //             req.open("GET", url, true);
+        //             req.responseType = "arraybuffer";
+        //             req.onreadystatechange = function () {
+        //                 if (req.readyState === 4) {
+        //                     if (req.status === 200) {
+        //                         resolve(XlsxPopulate.fromDataAsync(req.response));
+        //                     } else {
+        //                         reject("Received a " + req.status + " HTTP code.");
+        //                     }
+        //                 }
+        //             };
+
+        //             req.send();
+        //         });
+        //     } else if (radioLocal.checked) {
+        //         var file = fileInput.files[0];
+        //         if (!file) return Promise.reject("You must select a file.");
+        //         return XlsxPopulate.fromDataAsync(file);
+        //     }
+        // }
+
+        // function generate(type) {
+        //     return getWorkbook()
+        //         .then(function (workbook) {
+        //             return workbook.outputAsync({ type: type });
+        //         });
+        // }
+
+        // function generateBlob() {
+        //     return generate()
+        //         .then(function (blob) {
+        //             if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+        //                 window.navigator.msSaveOrOpenBlob(blob, "out.xlsx");
+        //             } else {
+        //                 var url = window.URL.createObjectURL(blob);
+        //                 var a = document.createElement("a");
+        //                 document.body.appendChild(a);
+        //                 a.href = url;
+        //                 a.download = "out.xlsx";
+        //                 a.click();
+        //                 window.URL.revokeObjectURL(url);
+        //                 document.body.removeChild(a);
+        //             }
+        //         })
+        //         .catch(function (err) {
+        //             alert(err.message || err);
+        //             throw err;
+        //         });
+        // }
+
+        // function generateBase64() {
+        //     return generate("base64")
+        //         .then(function (base64) {
+        //             if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+        //                 throw new Error("Navigating to data URI is not supported in IE.");
+        //             } else {
+        //                 location.href = "data:" + XlsxPopulate.MIME_TYPE + ";base64," + base64;
+        //             }
+        //         })
+        //         .catch(function (err) {
+        //             alert(err.message || err);
+        //             throw err;
+        //         });
+        // }
+    </script>
+</body>
+
+</html>
