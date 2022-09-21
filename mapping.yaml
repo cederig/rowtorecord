@@ -1,11 +1,10 @@
 ---
+modelSheetName: "Fiche Registre Type"
 sheets:
   - sheet:
       name: "RH"
-      domain: "Ressources Humaines"
       startRow: 2
       referenceColumn: "C"
-      recordState: "Projet"
       mapping:
         - source: "B"
           target: "C8"
@@ -25,11 +24,9 @@ sheets:
           target: "D34"
   - sheet:
       name: "DSI"
-      domain : "Système d'Infomation"
       startRow: 2
       stopRow: 4
       referenceColumn: "C"
-      recordState: "Actif"
       mapping:
         - source: "B"
           target: "C8"
@@ -47,5 +44,4 @@ sheets:
           target: "J20"
         - source: "I"
           target: "D34"
-modelSheetName: "Fiche Registre Type"
 ...    
