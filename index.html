@@ -12,16 +12,19 @@
     <div class="container">
         <h1>RowToRecord v1.0</h1>
         <div class="mb-3">
-            <label for="templateFile" class="form-label">Template Workbook</label>
-            <input class="form-control" type="file" id="templateFile">
+            <label for="templateFile" class="form-label">Excel Template Workbook</label>
+            <input class="form-control" type="file" id="templateFile" required>
         </div>
         <div class="mb-3">
-            <label for="sourceFile" class="form-label">Source Workbook</label>
-            <input class="form-control" type="file" id="sourceFile">
+            <label for="sourceFile" class="form-label">Excel Source Workbook</label>
+            <input class="form-control" type="file" id="sourceFile" required>
         </div>
         <div class="mb-3">
             <label for="configurationFile" class="form-label">Configuration File</label>
-            <input class="form-control" type="file" id="configurationFile" accept=".yaml">
+            <input class="form-control" type="file" id="configurationFile" required accept=".yaml">
+            <div class="invalid-feedback">
+                Something gone wrong with this file
+            </div>
         </div>
         <button class="btn btn-primary" onclick="converter()">Generate file</button>
         <div class="mb-3">
@@ -30,101 +33,181 @@
     </div>
 
     <script type="text/javascript">
+        'use strict'
+
+        let store = {};
+
+        const handleUpload = async (event) => {
+            const contentInput = event.target;
+            const errorFeedback = document.querySelector(".invalid-feedback");
+
+            try {
+                inputReset(contentInput);
+
+                const file = event.target.files[0];
+                if (!file) throw 'File not found';
+                const fileContent = await readFileAsText(file);
+                const configuration = parseYaml(fileContent);
+                if (!configuration) throw 'Configuration file not found';
+                store['configuration'] = configuration;
+
+                contentInput.classList.add('is-valid');
+            } catch (error) {
+                contentInput.classList.add('is-invalid');
+                errorFeedback.innerHTML = `Error : ${error}`;
+            }
+        }
+
+        const getWorkbook = async (event, store) => {
+            const contentInput = event.target;
+            try {
+                inputReset(contentInput);
+
+                const file = event.target.files[0];
+                if (!file) throw 'File not found';
+
+                let data = await XlsxPopulate.fromDataAsync(file);
+                if (!data) throw 'Data not found';
+                store(data);
+                contentInput.classList.add('is-valid');
+            } catch (error) {
+                contentInput.classList.add('is-invalid');
+            }
+        }
+
+        document.querySelector('#templateFile').addEventListener('change', event => {
+            getWorkbook(event, (data) => {
+                store['templateWorkbook'] = data;
+            });
+        });
+        document.querySelector('#sourceFile').addEventListener('change', event => {
+            getWorkbook(event, (data) => {
+                store['sourceWorkbook'] = data;
+            });
+        });
+        document.querySelector('#configurationFile').addEventListener('change', handleUpload);
 
         async function converter() {
             try {
-                let outputElement = "test.xlsm";
-
-                let templateFile = document.getElementById("templateFile").files[0];
-                let sourceFile = document.getElementById("sourceFile").files[0];
-                let outputFile = outputElement;
-                let configurationFile = document.getElementById("configurationFile").files[0];
-
-                if (!templateFile) throw 'Template file not found';
-                let modelWorkbook = await XlsxPopulate.fromDataAsync(templateFile);
-
-                if (!sourceFile) throw 'Source file not found';
-                let sourceWorkbook = await XlsxPopulate.fromDataAsync(sourceFile);
-
-                if (!configurationFile) throw 'Mapping file not found';
-
-                if (configurationFile) {
-                    let reader = new FileReader();
-                    reader.readAsText(configurationFile, "UTF-8");
-                    reader.onload = function (evt) {
-                        const { sheets, modelSheetName } = parseYaml(evt.target.result);
-
-                        Object.values(sheets).map(sheet => {
-                            try {
-                                const { sheet: { name, startRow, stopRow, referenceColumn, mapping } } = sheet;
-
-                                if (!modelSheetName) throw new SyntaxError('Missing model sheet name parameter');
-                                let mws = modelWorkbook.sheet(modelSheetName);
-                                if (!mws) throw new SyntaxError(`Model sheet name '${modelSheetName}' not found`);
-
-                                if (!name) throw new SyntaxError('Missing source sheet name parameter');
-                                let sws = sourceWorkbook.sheet(name);
-                                if (!sws) throw new SyntaxError(`Source sheet name '${name}' not found`);
-
-                                const rowCount = stopRow ?? sws._rows.length;
-
-                                if (!startRow) throw 'Missing start row parameter';
-                                if (!referenceColumn) throw 'Missing reference column parameter';
-
-                                for (let i = startRow; i < rowCount; i++) {
-
-                                    let sheetName = sws.row(i).cell(referenceColumn).value();
-                                    if (!sheetName) break;
-
-                                    let clone = modelWorkbook.cloneSheet(mws, sheetName);
-
-                                    Object.values(mapping).map(e => {
-                                        clone.cell(e.target).value(sws.row(i).cell(e.source).value());
-                                    });
-
-                                    clone.activeCell("A1");
-                                }
-                            } catch (error) {
-                                document.getElementById("err").innerHTML = error;
-                                throw error;
-                            }
-                        });
-
-                        let workbookSheets = modelWorkbook.sheets();
-                        modelWorkbook.activeSheet(workbookSheets[0]);
-                        workbookSheets[0].activeCell("A1");
-                        workbookSheets[1].activeCell("A1");
-
-                        generate(modelWorkbook).then((blob) => {
-                            var url = window.URL.createObjectURL(blob);
-                            var a = document.createElement("a");
-                            document.body.appendChild(a);
-                            a.href = url;
-                            a.download = "download.xlsm";
-                            a.click();
-                            window.URL.revokeObjectURL(url);
-                            document.body.removeChild(a);
-
-                            // console.log(XlsxPopulate.MIME_TYPE);
-                            // location.href = "data:" + XlsxPopulate.MIME_TYPE + ";base64," + base64;
-                        });
-                    }
-                    reader.onerror = function (evt) {
-                        throw (evt);
-                    }
+                if (!store['templateWorkbook']) {
+                    document.querySelector('#templateFile').classList.add('is-invalid');
+                    throw 'Template file not found';
                 }
+                if (!store['sourceWorkbook']) {
+                    document.querySelector('#sourceFile').classList.add('is-invalid');
+                    throw 'Source file not found';
+                }
+                if (!store['configuration']) {
+                    document.querySelector('#configurationFile').classList.add('is-invalid');
+                    throw 'Mapping file not found';
+                }
+
+                const { sheets, modelSheetName } = store['configuration'];
+
+                Object.values(sheets).map(sheet => {
+                    try {
+                        const { sheet: { name, startRow, stopRow, referenceColumn, mapping } } = sheet;
+
+                        if (!modelSheetName) throw new SyntaxError('Missing model sheet name parameter');
+                        let mws = store['templateWorkbook'].sheet(modelSheetName);
+                        if (!mws) throw new SyntaxError(`Model sheet name '${modelSheetName}' not found`);
+
+                        if (!name) throw new SyntaxError('Missing source sheet name parameter');
+                        let sws = store['sourceWorkbook'].sheet(name);
+                        if (!sws) throw new SyntaxError(`Source sheet name '${name}' not found`);
+
+                        const rowCount = stopRow ?? sws._rows.length;
+
+                        if (!startRow) throw 'Missing start row parameter';
+                        if (!referenceColumn) throw 'Missing reference column parameter';
+
+                        for (let i = startRow; i < rowCount; i++) {
+
+                            let sheetName = sws.row(i).cell(referenceColumn).value();
+                            if (!sheetName) break;
+
+                            let clone = store['templateWorkbook'].cloneSheet(mws, sheetName);
+
+                            Object.values(mapping).map(e => {
+                                clone.cell(e.target).value(sws.row(i).cell(e.source).value());
+                            });
+
+                            clone.activeCell("A1");
+                        }
+                    } catch (error) {
+                        document.getElementById("err").innerHTML = error;
+                        throw error;
+                    }
+                });
+
+                // let workbookSheets = modelWorkbook.sheets();
+                // modelWorkbook.activeSheet(workbookSheets[0]);
+                // workbookSheets[0].activeCell("A1");
+                // workbookSheets[1].activeCell("A1");
+
+                generate(store['templateWorkbook']).then((blob) => {
+                    var url = window.URL.createObjectURL(blob);
+                    var a = document.createElement("a");
+                    document.body.appendChild(a);
+                    a.href = url;
+                    a.download = "download.xlsm";
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+
+                    resetForm();
+                    // console.log(XlsxPopulate.MIME_TYPE);
+                    // location.href = "data:" + XlsxPopulate.MIME_TYPE + ";base64," + base64;
+                });
             } catch (error) {
                 document.getElementById("err").innerHTML = error;
             }
         }
 
-        const generate = (workbook) => {
+        const generate = workbook => {
             return workbook.outputAsync();
         }
 
-        const parseYaml = (contents) => {
+        const parseYaml = contents => {
             return jsyaml.load(contents);
         }
+
+        const readFileAsText = inputFile => {
+            const reader = new FileReader();
+
+            return new Promise((resolve, reject) => {
+                reader.onerror = () => {
+                    reader.abort();
+                    reject(new DOMException("Problem parsing input file."));
+                };
+
+                reader.onload = () => {
+                    resolve(reader.result);
+                };
+                reader.readAsText(inputFile);
+            });
+        };
+
+        const inputReset = (value) => {
+            value.classList.remove('is-invalid');
+            value.classList.remove('is-valid');
+        }
+
+        const resetForm = () => {
+            document.getElementById("err").innerHTML = '';
+
+            let t = document.getElementById('templateFile');
+            let s = document.getElementById('sourceFile');
+
+            t.value = t.defaultValue;
+            s.value = s.defaultValue;
+
+            inputReset(t);
+            inputReset(s);
+
+            store = {};
+        }
+
     </script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-populate@1.21.0/browser/xlsx-populate-no-encryption.min.js" integrity="sha256-EZ1GG/SOpLQwZR472G3ma/0x00lcEEs2QaeCtwLBp6I=" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js" integrity="sha256-Rdw90D3AegZwWiwpibjH9wkBPwS9U4bjJ51ORH8H69c=" crossorigin="anonymous"></script>
