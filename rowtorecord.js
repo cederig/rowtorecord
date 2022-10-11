@@ -50,7 +50,7 @@ const getWorkbook = async (event, store) => {
             store(data, extension);
 
         } catch (error) {
-            throw new Error("Error: Something went wrong with this file");
+            throw new Error("Error: Invalid file");
         }
 
     } catch (error) {
@@ -195,8 +195,6 @@ const spinnerOff = element => {
     element.setAttribute("hidden", "");
     element.parentNode.removeAttribute("disabled");
 }
-
-
 
 const inputReset = value => {
     value.classList.remove('is-invalid');
