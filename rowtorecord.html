@@ -38,7 +38,9 @@
             <span class="input-group-text" id="generatedFileExt">.xlsx</span>
         </div>
 
-        <button class="btn btn-primary" onclick="converter()">Generate file</button>
+        <button id="loadingButton" class="btn btn-primary" type="button" onclick="converter()">
+            <span id="spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" hidden></span> Generate file
+        </button>
         <div class="mb-3">
             <div id="err"></div>
         </div>
@@ -46,6 +48,8 @@
 
     <script type="text/javascript">
         'use strict'
+
+        const spinner = document.getElementById('spinner');
 
         let store = Object.create(null);
 
@@ -144,6 +148,9 @@
                 }
 
                 const { sheets, modelSheetName } = store['configuration'];
+
+                spinner.removeAttribute("hidden");
+                spinner.parentNode.setAttribute("disabled", "");
 
                 Object.values(sheets).map(sheet => {
                     try {
@@ -253,6 +260,9 @@
             inputReset(u);
             inputReset(v);
             store = {};
+
+            spinner.setAttribute("hidden", "");
+            spinner.parentNode.removeAttribute("disabled");
         }
 
         const getFileNameExtension = (filename) => {
