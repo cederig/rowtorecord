@@ -4,32 +4,33 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>RowToRecord v1.0</title>
+    <title>RowToRecord</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-iYQeCzEYFbKjA/T2uDLTpkwGzCiq6soy8tYaI1GyVh/UjpbCx/TYkiZhlZB6+fzT" crossorigin="anonymous">
 </head>
 
 <body>
     <div class="container">
-        <h1>RowToRecord v1.0</h1>
+        <h1>RowToRecord</h1>        
+        <h6>v1.0.1</h6>
         <div class="mb-3">
             <label for="templateFile" class="form-label">Excel Template Workbook</label>
             <input class="form-control" type="file" id="templateFile" required accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsm">
             <div class="invalid-feedback">
-                Something gone wrong with this file
+                Something went wrong with this file
             </div>
         </div>
         <div class="mb-3">
             <label for="sourceFile" class="form-label">Excel Source Workbook</label>
             <input class="form-control" type="file" id="sourceFile" required accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsm">
             <div class="invalid-feedback">
-                Something gone wrong with this file
+                Something went wrong with this file
             </div>
         </div>
         <div class="mb-3">
             <label for="configurationFile" class="form-label">Configuration file</label>
             <input class="form-control" type="file" id="configurationFile" required accept=".yaml">
             <div class="invalid-feedback">
-                Something gone wrong with this file
+                Something went wrong with this file
             </div>
         </div>
         <label for="generatedFile" class="form-label">Generated file name</label>
